@@ -34,7 +34,25 @@ public class EmpBean implements EntityBean {
      * 
      */
     private static final long serialVersionUID = 1L;
-
+    private static final String INSERTION_QUERY = "INSERT INTO emp VALUES(emp_id.nextval, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String SELECT_BY_EMPNO_QUERY = "SELECT * FROM emp WHERE  empno=?";
+    private static final String SELECT_QUERY = "SELECT * FROM emp";
+    private static final String SELECT_BY_DEPTNO_QUERY = "SELECT empno FROM emp where deptno=?";
+    private static final String SELECT_BY_MANAGER_QUERY = "SELECT * FROM emp where mgr=?";
+    private static final String SELECT_HIRERARCHY_QUERY = "SELECT * FROM emp START WITH empno = ? CONNECT BY NOCYCLE PRIOR mgr = empno";
+    private static final String SELECT_ALL_MANAGERS_QUERY = "SELECT * FROM emp where job = 'MANAGER' or job = 'PRESIDENT'";
+    private static final String SELECT_SEQUENCE_CURVAL = "select emp_id.curval into id from dual";
+    private static final String DELETION_QUERY = "DELETE FROM emp WHERE empno = ?";
+    private static final String UPDATING_QUERY = "UPDATE emp SET ename = ?, job = ?, mgr = ?, hiredate = ?, sal = ?, comm = ?, deptno = ? WHERE empno = ?";
+    
+    private static final String INSERTION_PROBLEM = "Can not insert Employee into database: ";
+    private static final String SELECTION_PROBLEM = "Can not select Employees from database: ";
+    private static final String DELETION_PROBLEM = "Can not delete Employee from database: ";
+    private static final String UPDATING_PROBLEM = "Can not update Employee into database: ";
+    private static final String FINDING_EMPNO_PROBLEM = "Can not find Employee with empno ";
+    private static final String FINDING_PROBLEM = "Can not find Employee in database: ";
+    private static final String SEARCHING_PROBLEM = "Can not search Employees from database:";
+    private static final String DB_PROBLEM = "There are some problem with db: ";
     /**
      * @param ename
      * the ename to set
@@ -174,10 +192,9 @@ public class EmpBean implements EntityBean {
         Connection connection = DBConnector.getConnection(context);
         PreparedStatement stmt = null;
         ResultSet res = null;
-        String sql = "INSERT INTO emp VALUES(emp_id.nextval, ?, ?, ?, ?, ?, ?, ?)";
 
         try {
-            stmt = connection.prepareStatement(sql.toString());
+            stmt = connection.prepareStatement(INSERTION_QUERY);
             
             stmt.setString(1, ename);
             stmt.setString(2, job);
@@ -190,7 +207,7 @@ public class EmpBean implements EntityBean {
             int id = 0;
             
             if(stmt.execute()) {
-                stmt = connection.prepareStatement("select emp_id.curval into id from dual");
+                stmt = connection.prepareStatement(SELECT_SEQUENCE_CURVAL);
                 res = stmt.executeQuery();
                 if(res.next()) {
                     id = res.getInt(1);
@@ -207,13 +224,12 @@ public class EmpBean implements EntityBean {
             setSal(salgrade);
             return id;
         } catch(SQLException sqle) {
-            throw new EJBException("Can not insert Employee into database:" + sqle.getMessage(), sqle);
+            throw new EJBException(INSERTION_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
     }
@@ -238,10 +254,9 @@ public class EmpBean implements EntityBean {
         Connection connection = DBConnector.getConnection(context);
         PreparedStatement stmt = null;
         ResultSet res = null;
-        String query = "SELECT * FROM emp WHERE  empno=?";
         
         try {
-            stmt = connection.prepareStatement(query);
+            stmt = connection.prepareStatement(SELECT_BY_EMPNO_QUERY);
             stmt.setInt(1, empno);
             
             res = stmt.executeQuery();
@@ -257,7 +272,7 @@ public class EmpBean implements EntityBean {
             }
             
             if(mgr != 0) {
-                stmt = connection.prepareStatement("SELECT ename FROM emp WHERE empno=?");
+                stmt = connection.prepareStatement(SELECT_BY_EMPNO_QUERY);
                 stmt.setInt(1, mgr);
                 res = stmt.executeQuery();
                 if(res.next()) {
@@ -271,20 +286,12 @@ public class EmpBean implements EntityBean {
             }
             
         } catch(SQLException sqle) {
-            throw new EJBException("Can not select Employees from database:" + sqle.getMessage(), sqle);
+            throw new EJBException(SELECTION_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
     }
@@ -294,17 +301,16 @@ public class EmpBean implements EntityBean {
         Connection connection = DBConnector.getConnection(context);
         PreparedStatement stmt = null;
         try {
-            stmt = connection.prepareStatement("DELETE FROM emp WHERE empno = ?");
+            stmt = connection.prepareStatement(DELETION_QUERY);
             stmt.setInt(1, empno);
             stmt.execute();
         } catch(SQLException sqle) {
-            throw new EJBException("Can not delete Employee from database:" + sqle.getMessage(), sqle);
+            throw new EJBException(DELETION_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
+                DBConnector.closeConnection(stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
     }
@@ -313,13 +319,9 @@ public class EmpBean implements EntityBean {
     public void ejbStore() throws EJBException {
         Connection connection = DBConnector.getConnection(context);
         PreparedStatement stmt = null;
-        StringBuilder sql = new StringBuilder("UPDATE emp SET ");
-        sql.append("ename = ?, job = ?, mgr = ?, hiredate = ?, ").
-        append("sal = ?, comm = ?, deptno = ? ").
-        append("WHERE empno = ?");
         
         try {
-            stmt = connection.prepareStatement(sql.toString());
+            stmt = connection.prepareStatement(UPDATING_QUERY);
             
             stmt.setString(1, getEname());
             stmt.setString(2, getJob());
@@ -333,13 +335,12 @@ public class EmpBean implements EntityBean {
             
             stmt.execute();
         } catch(SQLException sqle) {
-            throw new EJBException("Can not update Employee into database:" + sqle.getMessage(), sqle);
+            throw new EJBException(UPDATING_PROBLEM + sqle.getMessage(), sqle);
         } finally {
-            try { 
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
+            try {
+                DBConnector.closeConnection(stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
     }
@@ -359,31 +360,22 @@ public class EmpBean implements EntityBean {
         PreparedStatement stmt = null;
         ResultSet res = null;
         try {
-            stmt = connection.prepareStatement("SELECT * " + 
-                    "FROM emp where empno = ?");
+            stmt = connection.prepareStatement(SELECT_BY_EMPNO_QUERY);
             stmt.setInt(1, empno);
             res = stmt.executeQuery();
             
             if(res.next()) {
                 return empno;
             } else {
-                throw new FinderException("Can not find Employee with empno" + empno);
+                throw new FinderException(FINDING_EMPNO_PROBLEM  + empno);
             }
         } catch(SQLException sqle) {
-            throw new EJBException("Can not find Employee into database:" + sqle.getMessage(), sqle);
+            throw new EJBException(FINDING_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
     }
@@ -395,27 +387,19 @@ public class EmpBean implements EntityBean {
         List<Integer> emps = new ArrayList<Integer>();
         
         try {
-            stmt = connection.prepareStatement("SELECT * FROM emp");
+            stmt = connection.prepareStatement(SELECT_QUERY);
             res = stmt.executeQuery();
             
             while(res.next()) {
                 emps.add(res.getInt("empno"));
             }
         } catch(SQLException sqle) {
-            throw new EJBException("Can not find Employee into database:" + sqle.getMessage(), sqle);
+            throw new EJBException(FINDING_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
         
@@ -429,7 +413,7 @@ public class EmpBean implements EntityBean {
         List<Integer> emps = new ArrayList<Integer>();
         
         try {
-            stmt = connection.prepareStatement("SELECT * FROM emp where deptno=?");
+            stmt = connection.prepareStatement(SELECT_BY_DEPTNO_QUERY);
             stmt.setInt(1, deptno);
             res = stmt.executeQuery();
             
@@ -437,20 +421,12 @@ public class EmpBean implements EntityBean {
                 emps.add(res.getInt("empno"));
             }
         } catch(SQLException sqle) {
-            throw new EJBException("Can not find Employee into database:" + sqle.getMessage(), sqle);
+            throw new EJBException(FINDING_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
         
@@ -464,7 +440,7 @@ public class EmpBean implements EntityBean {
         List<Integer> emps = new ArrayList<Integer>();
         
         try {
-            stmt = connection.prepareStatement("SELECT * FROM emp where mgr=?");
+            stmt = connection.prepareStatement(SELECT_BY_MANAGER_QUERY);
             stmt.setInt(1, mgrID);
             res = stmt.executeQuery();
             
@@ -472,20 +448,12 @@ public class EmpBean implements EntityBean {
                 emps.add(res.getInt("empno"));
             }
         } catch(SQLException sqle) {
-            throw new EJBException("Can not find Employee into database:" + sqle.getMessage(), sqle);
+            throw new EJBException(FINDING_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
         
@@ -497,10 +465,9 @@ public class EmpBean implements EntityBean {
         PreparedStatement stmt = null;
         ResultSet res = null;
         List<Integer> empList = new ArrayList<Integer>();
-        String query = "SELECT * FROM emp START WITH empno = ? CONNECT BY NOCYCLE PRIOR mgr = empno";
         
         try {
-            stmt = connection.prepareStatement(query);
+            stmt = connection.prepareStatement(SELECT_HIRERARCHY_QUERY);
             stmt.setInt(1, empno);
             
             res = stmt.executeQuery();
@@ -510,20 +477,12 @@ public class EmpBean implements EntityBean {
             }
             
         } catch(SQLException sqle) {
-            throw new EJBException("Can not select Employees from database:" + sqle.getMessage(), sqle);
+            throw new EJBException(SELECTION_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
         return empList;
@@ -534,10 +493,9 @@ public class EmpBean implements EntityBean {
         PreparedStatement stmt = null;
         ResultSet res = null;
         List<Integer> empList = new LinkedList<Integer>();
-        String query = "SELECT * FROM emp where job = 'MANAGER' or job = 'PRESIDENT'";
         
         try {
-            stmt = connection.prepareStatement(query);
+            stmt = connection.prepareStatement(SELECT_ALL_MANAGERS_QUERY);
             
             res = stmt.executeQuery();
             
@@ -545,22 +503,13 @@ public class EmpBean implements EntityBean {
                 empList.add(res.getInt("empno"));
             }
             
-
         } catch(SQLException sqle) {
-            throw new EJBException("Can not select Employees from database:" + sqle.getMessage(), sqle);
+            throw new EJBException(SELECTION_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
-            } finally {
-                try { 
-                    if(res != null)
-                        res.close();
-                } catch(SQLException sqle) {
-                    throw new EJBException("Can not close resultset:" + sqle.getMessage(), sqle);
-                }
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
         return empList;
@@ -600,13 +549,12 @@ public class EmpBean implements EntityBean {
                 emps.add(res.getInt("empno"));
             }
         } catch(SQLException sqle) {
-            throw new EJBException("Can not search Employees from database:" + sqle.getMessage(), sqle);
+            throw new EJBException(SEARCHING_PROBLEM + sqle.getMessage(), sqle);
         } finally {
             try {
-                if(connection != null)
-                    connection.close();
-            } catch(SQLException sqle) {
-                throw new EJBException("Can not close statement:" + sqle.getMessage(), sqle);
+                DBConnector.closeConnection(res, stmt, connection);
+            } catch(SourceException sqle) {
+                throw new EJBException(DB_PROBLEM + sqle.getMessage(), sqle);
             }
         }
         return emps;

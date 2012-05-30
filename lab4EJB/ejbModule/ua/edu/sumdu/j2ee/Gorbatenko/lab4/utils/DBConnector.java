@@ -59,4 +59,35 @@ public class DBConnector {
             throw new SourceException("Cannot close database connection" + sqle.getMessage(), sqle);
         }
     }
+    
+    public static void closeConnection(Connection con) throws SourceException {
+        try {
+            if(con != null)
+                con.close();
+        } catch (SQLException sqle) {
+            throw new SourceException("There are some problem with closing connection: " + sqle.getMessage(), sqle);
+        }
+    }
+    
+    public static void closeConnection(Statement stmt, Connection con) throws SourceException {
+        try {
+            if(stmt != null)
+                stmt.close();
+        } catch (SQLException sqle) {
+            throw new SourceException("There are some problem with closing statement: " + sqle.getMessage(), sqle);
+        } finally {
+            closeConnection(con);
+        }
+    }
+    
+    public static void closeConnection(ResultSet rs, Statement stmt, Connection con) throws SourceException {
+        try {
+            if(rs != null)
+                rs.close();
+        } catch (SQLException sqle) {
+            throw new SourceException("There are some problem with closing resulSet: " + sqle.getMessage(), sqle);
+        } finally {
+            closeConnection(stmt, con);
+        }
+    }
 }

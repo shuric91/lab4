@@ -1,9 +1,11 @@
 package ua.edu.sumdu.j2ee.Gorbatenko.lab4.model;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import javax.ejb.CreateException;
 import javax.ejb.EJBException;
@@ -34,17 +36,16 @@ public class BeanDepartmentDAO implements EntityDAO {
     
     public BeanDepartmentDAO() throws DAOException {
         try {
-            java.util.Hashtable<String, String> environment = new java.util.Hashtable<String, String>();
-            
-            environment.put(Context.INITIAL_CONTEXT_FACTORY, "org.jnp.interfaces.NamingContextFactory");
-            environment.put(Context.URL_PKG_PREFIXES, "org.jboss.naming:org.jnp.interfaces");
-            environment.put(Context.PROVIDER_URL, "jnp://localhost:1099");
-            
-            Context context = (Context) new InitialContext(environment);
+            Properties prop = new Properties();
+            prop.load(getClass().getResourceAsStream("/res/jndi.properties"));
+
+            Context context = (Context) new InitialContext(prop);
             Object obj = context.lookup("DeptBean");
             dept = (DeptHome)  PortableRemoteObject.narrow(obj, DeptHome.class);
         } catch (NamingException ne) {
             throw new DAOException("Can not lookup Dept Bean: " + ne.getMessage(), ne);
+        } catch (IOException ioe) {
+            throw new DAOException("Can not load property file " + ioe.getMessage(), ioe);
         }
     }
     

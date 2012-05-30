@@ -1,5 +1,9 @@
 package ua.edu.sumdu.j2ee.Gorbatenko.lab4.model;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.util.*;
 
@@ -21,8 +25,6 @@ public class BeanEmployeeDAO implements EntityDAO {
 
     private EmpHome emp;
     
-    Context context;
-
     public static final String BEAN_PROBLEM = "There are some problems caused by EmpBean: ";
 
     private Employee remoteToEmp(Emp remote)
@@ -42,20 +44,16 @@ public class BeanEmployeeDAO implements EntityDAO {
 
     public BeanEmployeeDAO() throws DAOException {
         try {
-            java.util.Hashtable<String, String> environment = new java.util.Hashtable<String, String>();
+            Properties prop = new Properties();
+            prop.load(getClass().getResourceAsStream("/res/jndi.properties"));
 
-            environment.put(Context.INITIAL_CONTEXT_FACTORY,
-                    "org.jnp.interfaces.NamingContextFactory");
-            environment.put(Context.URL_PKG_PREFIXES,
-                    "org.jboss.naming:org.jnp.interfaces");
-            environment.put(Context.PROVIDER_URL, "jnp://localhost:1099");
-
-            context = (Context) new InitialContext(environment);
+            Context context = (Context) new InitialContext(prop);
             Object obj = context.lookup("EmpBean");
             emp = (EmpHome) PortableRemoteObject.narrow(obj, EmpHome.class);
         } catch (NamingException ne) {
-            throw new DAOException("Can not lookup Emp Bean" + ne.getMessage(),
-                    ne);
+            throw new DAOException("Can not lookup Emp Bean " + ne.getMessage(), ne);
+        } catch (IOException ioe) {
+            throw new DAOException("Can not load property file " + ioe.getMessage(), ioe);
         }
     }
 
@@ -124,7 +122,7 @@ public class BeanEmployeeDAO implements EntityDAO {
         }
         
         try {
-            Emp oldEmpRemote = emp.findByPrimaryKey(oldEmp.getDeptno());
+            Emp oldEmpRemote = emp.findByPrimaryKey(oldEmp.getEmpno());
             oldEmpRemote.setComm(newEmp.getComm());
             oldEmpRemote.setDeptno(newEmp.getDeptno());
             oldEmpRemote.setEmpno(newEmp.getEmpno());
@@ -132,7 +130,6 @@ public class BeanEmployeeDAO implements EntityDAO {
             oldEmpRemote.setHiredate(newEmp.getHiredate());
             oldEmpRemote.setJob(newEmp.getJob());
             oldEmpRemote.setMgr(newEmp.getMgr());
-            oldEmpRemote.setMgrName(newEmp.getMgrName());
             oldEmpRemote.setSal(newEmp.getSal());
         } catch (EJBException ejbe) {
             throw new DAOException(BEAN_PROBLEM + ejbe.getMessage(), ejbe);

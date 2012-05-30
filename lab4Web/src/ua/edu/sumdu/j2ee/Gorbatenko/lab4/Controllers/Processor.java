@@ -326,9 +326,8 @@ public class Processor extends HttpServlet {
                             Employee oldEmp = (Employee) controller
                                     .onFindEmp(id);
                             Employee newEmp = new Employee();
-
-                            newEmp.setEmpno(Integer.parseInt(request
-                                    .getParameter("empno")));
+                            System.out.println("**************************" + id);
+                            newEmp.setEmpno(id);
                             newEmp.setEname(request.getParameter("ename"));
                             newEmp.setMgr(Integer.parseInt(request
                                     .getParameter("mgr")));
